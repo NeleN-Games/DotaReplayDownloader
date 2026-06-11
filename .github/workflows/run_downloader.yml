@@ -1,0 +1,45 @@
+name: Remote Dota Replay Downloader
+
+on:
+  workflow_dispatch:
+    inputs:
+      match_id:
+        description: 'Enter Dota 2 Match ID'
+        required: true
+        default: ''
+  repository_dispatch:
+    types: [trigger_download]
+
+jobs:
+  download-and-process:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests
+
+    - name: Run Downloader Script
+      run: |
+        if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+          python download_replay_gh.py ${{ github.event.client_payload.match_id }}
+        else
+          python download_replay_gh.py ${{ github.event.inputs.match_id }}
+        fi
+
+    - name: Upload Replay Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: |
+          ${{ github.event_name == 'repository_dispatch' && format('dota-replay-{0}', github.event.client_payload.match_id) || format('dota-replay-{0}', github.event.inputs.match_id) }}
+        path: workspace_replay/
+        retention-days: 1
